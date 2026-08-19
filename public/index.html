@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>X Media Grab — download media from X posts</title>
+  <meta name="description" content="Paste a post link from X (Twitter) and download its images, videos, and audio — JPG, MP4, MP3 — directly to your device." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23000'/%3E%3Cpath d='M18 16h8.5l11 15.5L49 16h8L38.5 32.8 51 48h-8.5L31 32.2 21.5 48H13l13.2-16.9z' fill='%23e7e9ea'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div class="wrap">
+
+    <header class="top reveal">
+      <div class="wordmark" aria-label="X Media Grab">
+        <svg class="x-glyph" viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M18 16h8.5l11 15.5L49 16h8L38.5 32.8 51 48h-8.5L31 32.2 21.5 48H13l13.2-16.9z" fill="currentColor"/>
+        </svg>
+        <span class="wordmark-text">Media&nbsp;Grab</span>
+      </div>
+      <span class="top-note mono">images · videos · audio</span>
+    </header>
+
+    <main>
+      <section class="composer reveal" id="composer" aria-label="Post lookup">
+        <input
+          id="post-input"
+          type="text"
+          inputmode="url"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="Paste a post link or post ID"
+          aria-label="Paste a post link or post ID"
+        />
+        <button id="fetch-btn" class="btn-primary" type="button">
+          <span class="btn-label">Get media</span>
+        </button>
+      </section>
+
+      <p class="hint reveal mono">
+        <span class="hint-code">x.com/SpaceX/status/1938…</span>
+        <span class="hint-sep">or just the ID</span>
+        <span class="hint-code">1938000000000000000</span>
+      </p>
+
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+
+      <section id="result" class="result" hidden>
+        <article class="tweet-card" id="tweet-card"></article>
+        <div class="media-grid" id="media-grid"></div>
+      </section>
+    </main>
+
+    <footer class="foot reveal">
+      <p>
+        Files come straight from X&rsquo;s public CDN, routed through Netlify
+        functions so the browser can save them directly. MP3 is the audio track
+        pulled from a video, encoded in your browser.
+      </p>
+      <p class="foot-legal">
+        For personal use. Only save media you have the right to keep.
+      </p>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/vendor/lame.min.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

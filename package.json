@@ -1,0 +1,13 @@
+{
+  "name": "x-media-grab",
+  "version": "1.0.0",
+  "description": "Paste a post link from X (Twitter) and download its images, videos, and audio — JPG, MP4, MP3 — directly. Static frontend + zero-dependency Netlify functions.",
+  "private": true,
+  "scripts": {
+    "dev": "netlify dev",
+    "deploy": "netlify deploy --prod"
+  },
+  "devDependencies": {
+    "netlify": "^17.35.0"
+  }
+}
