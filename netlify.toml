@@ -2,7 +2,7 @@
 # Static site (public/) + two zero-dependency serverless functions (functions/).
 
 [build]
-  command = "test -f public/js/app.js && test -f functions/tweet.js && test -f functions/media.js"
+  command = "echo 'No build needed — static site + serverless functions'"
   publish = "public"
   functions = "functions"
 
