@@ -1,6 +1,6 @@
 /* X Media Grab — frontend logic
- * Paste a post link/ID → fetch media metadata via /api/tweet →
- * download files via /api/media (Content-Disposition attachment) →
+ * Paste a post link/ID → fetch media metadata via /.netlify/functions/tweet →
+ * download files via /.netlify/functions/media (Content-Disposition attachment) →
  * optional client-side MP3 extraction from video.
  */
 "use strict";
@@ -109,7 +109,7 @@ async function fetchTweet(rawInput) {
   resultEl.hidden = true;
   showStatus("loading", "Fetching post…", "Looking the link up against X.");
   try {
-    const r = await fetch(`/api/tweet?input=${encodeURIComponent(rawInput)}`);
+    const r = await fetch(`/\.netlify/functions/tweet?input=${encodeURIComponent(rawInput)}`);
     let data = null;
     try { data = await r.json(); } catch (_) { /* non-json */ }
     if (rid !== requestId) return; // a newer request superseded this one
@@ -239,10 +239,10 @@ function renderMediaCard(t, m, index) {
     v.loop = true;
     v.preload = "metadata";
     // video.twimg.com rejects requests carrying a Referer header (which a
-    // <video> element sends), so previews stream through our /api/media
+    // <video> element sends), so previews stream through our /.netlify/functions/media proxy
     // proxy. The poster image (pbs.twimg.com) loads directly.
     if (m.thumbnail) v.poster = m.thumbnail;
-    v.src = `/api/media?src=${encodeURIComponent(m.url)}&name=${encodeURIComponent(filename)}&inline=1`;
+    v.src = `/\.netlify/functions/media?src=${encodeURIComponent(m.url)}&name=${encodeURIComponent(filename)}&inline=1`;
     if (!reducedMotion) {
       card.addEventListener("mouseenter", () => { v.play().catch(() => {}); });
       card.addEventListener("mouseleave", () => { v.pause(); });
@@ -322,10 +322,10 @@ function renderMediaCard(t, m, index) {
 async function probeSize(m) {
   try {
     // video.twimg.com 403s browser requests that carry a Referer header, so
-    // videos are probed through our /api/media proxy (which answers HEAD).
+    // videos are probed through our /.netlify/functions/media proxy (which answers HEAD).
     const url =
       m.type === "video"
-        ? `/api/media?src=${encodeURIComponent(m.url)}&name=${encodeURIComponent("probe." + (m.ext || "mp4"))}`
+        ? `/\.netlify/functions/media?src=${encodeURIComponent(m.url)}&name=${encodeURIComponent("probe." + (m.ext || "mp4"))}`
         : m.url;
     const r = await fetch(url, { method: "HEAD" });
     if (!r.ok) return null;
@@ -341,7 +341,7 @@ async function probeSize(m) {
 // ---------------------------------------------------------------------------
 
 function startFileDownload(srcUrl, filename) {
-  const target = `/api/media?src=${encodeURIComponent(srcUrl)}&name=${encodeURIComponent(filename)}`;
+  const target = `/\.netlify/functions/media?src=${encodeURIComponent(srcUrl)}&name=${encodeURIComponent(filename)}`;
   const a = document.createElement("a");
   a.href = target;
   // same-origin: no download attr needed — the server sets Content-Disposition
@@ -376,7 +376,7 @@ async function extractMp3(m, baseName, btn) {
     // 1) fetch the video with progress — via our proxy, because
     //    video.twimg.com rejects browser fetches that carry a Referer.
     btn.textContent = "Fetching… 0%";
-    const proxyUrl = `/api/media?src=${encodeURIComponent(m.url)}&name=${encodeURIComponent(baseName)}`;
+    const proxyUrl = `/\.netlify/functions/media?src=${encodeURIComponent(m.url)}&name=${encodeURIComponent(baseName)}`;
     const buf = await fetchWithProgress(proxyUrl, (pct) => {
       btn.textContent = `Fetching… ${pct}%`;
     });
