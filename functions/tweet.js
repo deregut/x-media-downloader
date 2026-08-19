@@ -31,8 +31,10 @@ const CORS = {
 export function extractPostId(input) {
   const s = String(input || "").trim();
   if (!s) return null;
-  if (/^\d{5,25}$/.test(s)) return s;
-  const m = s.match(/status(?:es)?\/(\d{5,25})/i);
+  // Bare ID (X uses 18-19 digit snowflake IDs)
+  if (/^\d{10,25}$/.test(s)) return s;
+  // URL patterns: /status/<id>, /status/<id>/, /i/status/<id>
+  const m = s.match(/(?:^|\/)status(?:es)?\/(\d{10,25})/i);
   if (m) return m[1];
   return null;
 }
@@ -342,13 +344,14 @@ export const handler = async (event) => {
   // 2) fxtwitter
   try {
     const r2 = await fetchJson(`https://api.fxtwitter.com/status/${id}`);
-    tried.push(`fxtwitter:${r2.status}`);
     if (r2.status === 200 && r2.json && r2.json.tweet) {
       const parsed = parseFx(r2.json);
       if (parsed) return jsonOk(parsed);
       tried.push("fxtwitter:200-no-parse");
+    } else {
+      tried.push(`fxtwitter:${r2.status}`);
     }
-    if (r2.status === 404) tried.push("fxtwitter:404");
+    if (r2.status === 404) return jsonErr(404, "NOT_FOUND", `Post ${id} not found on fxtwitter. It may be private, age-restricted, or deleted.`);
     if (r2.status === 429) {
       return jsonErr(429, "RATE_LIMITED", "The fallback service is rate-limited. Wait a few seconds and try again.");
     }
@@ -356,16 +359,16 @@ export const handler = async (event) => {
     tried.push(`fxtwitter:${e.name === "AbortError" ? "timeout" : e.message}`);
   }
 
-  // 3) vxtwitter
+  // 3) vxtwitter (skip if API returns HTML instead of JSON)
   try {
-    const r3 = await fetchJson(`https://api.vxtwitter.com/i/status/${id}`);
-    tried.push(`vxtwitter:${r3.status}`);
-    if (r3.status === 200 && r3.json) {
+    const r3 = await fetchJson(`https://api.vxtwitter.com/status/${id}`);
+    if (r3.status === 200 && r3.json && typeof r3.json === "object" && !r3.json.title) {
       const parsed = parseVx(r3.json);
       if (parsed) return jsonOk(parsed);
       tried.push("vxtwitter:200-no-parse");
+    } else {
+      tried.push(`vxtwitter:${r3.status}`);
     }
-    if (r3.status === 404) tried.push("vxtwitter:404");
   } catch (e) {
     tried.push(`vxtwitter:${e.name === "AbortError" ? "timeout" : e.message}`);
   }
