@@ -6,7 +6,8 @@
  * Strategy:
  *   1. Parse the post ID (bare ID, /status/<id>/ URL, or follow t.co redirects).
  *   2. Primary: X's public syndication endpoint (the one embeds use).
- *   3. Fallback: the public fxtwitter API (api.fxtwitter.com).
+ *   3. Fallback 1: the public fxtwitter API (api.fxtwitter.com).
+ *   4. Fallback 2: the public vxtwitter API (api.vxtwitter.com).
  *
  * Returns a normalized JSON payload:
  *   { id, url, text, author:{name,screen_name,avatar}, created_at,
@@ -185,6 +186,52 @@ export function parseFx(j) {
   };
 }
 
+/** Parse an api.vxtwitter.com/i/status/<id> payload (flat, no wrapper). */
+export function parseVx(j) {
+  if (!j || !j.id) return null;
+  const media = [];
+  for (const m of (j.media && j.media.all) || []) {
+    if (m.type === "video") {
+      media.push({
+        type: "video",
+        url: m.url,
+        thumbnail: m.thumbnail_url || "",
+        duration_millis: m.duration_millis || 0,
+        width: m.width || 0,
+        height: m.height || 0,
+        ext: extFromUrl(m.url, "mp4"),
+      });
+    } else {
+      media.push({
+        type: "image",
+        url: withOrigSize(m.url),
+        width: m.width || 0,
+        height: m.height || 0,
+        ext: extFromUrl(m.url, m.type === "animated_gif" || m.type === "gif" ? "gif" : "jpg"),
+      });
+    }
+  }
+  const a = j.author || {};
+  return {
+    id: String(j.id),
+    url: j.url || canonicalPostUrl(a.screen_name, String(j.id)),
+    text: j.text || "",
+    author: {
+      name: a.name || "",
+      screen_name: a.screen_name || "",
+      avatar: a.avatar_url || "",
+    },
+    created_at: j.created_at || "",
+    stats: {
+      likes: j.likes || 0,
+      replies: j.replies || 0,
+      views: j.views || null,
+    },
+    provider: "vxtwitter",
+    media,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Network
 // ---------------------------------------------------------------------------
@@ -273,41 +320,60 @@ export const handler = async (event) => {
   }
 
   // 1) Syndication
+  const tried = [];
   try {
     const token = syndicationToken(id);
     const r = await fetchJson(
       `https://cdn.syndication.twimg.com/tweet-result?id=${id}&token=${token}&lang=en`,
     );
+    tried.push(`syndication:${r.status}`);
     if (r.status === 200 && r.json) {
       const parsed = parseSyndication(r.json);
       if (parsed) return jsonOk(parsed);
+      tried.push("syndication:200-no-parse");
     }
     if (r.status === 429) {
       return jsonErr(429, "RATE_LIMITED", "X is rate-limiting requests right now. Wait a few seconds and try again.");
     }
-  } catch (_) {
-    /* fall through to fallback */
+  } catch (e) {
+    tried.push(`syndication:${e.name === "AbortError" ? "timeout" : e.message}`);
   }
 
-  // 2) fxtwitter fallback
+  // 2) fxtwitter
   try {
     const r2 = await fetchJson(`https://api.fxtwitter.com/status/${id}`);
+    tried.push(`fxtwitter:${r2.status}`);
     if (r2.status === 200 && r2.json && r2.json.tweet) {
       const parsed = parseFx(r2.json);
       if (parsed) return jsonOk(parsed);
+      tried.push("fxtwitter:200-no-parse");
     }
-    if (r2.status === 404) {
-      return jsonErr(
-        404,
-        "NOT_FOUND",
-        "That post didn't come back. It may be private, age-restricted, deleted, or the link is off.",
-      );
-    }
+    if (r2.status === 404) tried.push("fxtwitter:404");
     if (r2.status === 429) {
       return jsonErr(429, "RATE_LIMITED", "The fallback service is rate-limited. Wait a few seconds and try again.");
     }
-    return jsonErr(502, "UPSTREAM", "Both lookups failed. Try again in a moment.");
   } catch (e) {
-    return jsonErr(502, "UPSTREAM", "Network error while looking up the post. Try again.");
+    tried.push(`fxtwitter:${e.name === "AbortError" ? "timeout" : e.message}`);
   }
+
+  // 3) vxtwitter
+  try {
+    const r3 = await fetchJson(`https://api.vxtwitter.com/i/status/${id}`);
+    tried.push(`vxtwitter:${r3.status}`);
+    if (r3.status === 200 && r3.json) {
+      const parsed = parseVx(r3.json);
+      if (parsed) return jsonOk(parsed);
+      tried.push("vxtwitter:200-no-parse");
+    }
+    if (r3.status === 404) tried.push("vxtwitter:404");
+  } catch (e) {
+    tried.push(`vxtwitter:${e.name === "AbortError" ? "timeout" : e.message}`);
+  }
+
+  // All providers failed — report which ones and why
+  const summary = tried.join(" | ");
+  if (tried.some((t) => t.includes("404"))) {
+    return jsonErr(404, "NOT_FOUND", `Post ${id} not found on any provider. (${summary})`);
+  }
+  return jsonErr(502, "ALL_PROVIDERS_FAILED", `Every lookup provider failed. (${summary})`);
 };
