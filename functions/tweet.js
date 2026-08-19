@@ -31,10 +31,10 @@ const CORS = {
 export function extractPostId(input) {
   const s = String(input || "").trim();
   if (!s) return null;
-  // Bare ID (X uses 18-19 digit snowflake IDs)
-  if (/^\d{10,25}$/.test(s)) return s;
+  // Bare ID (X uses 18-19 digit snowflake IDs, but older tweets can be shorter)
+  if (/^\d{1,25}$/.test(s)) return s;
   // URL patterns: /status/<id>, /status/<id>/, /i/status/<id>
-  const m = s.match(/(?:^|\/)status(?:es)?\/(\d{10,25})/i);
+  const m = s.match(/(?:^|\/)status(?:es)?\/(\d{1,25})/i);
   if (m) return m[1];
   return null;
 }
