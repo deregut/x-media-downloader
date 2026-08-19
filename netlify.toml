@@ -12,4 +12,11 @@
 [dev]
   port = 8888
   targetPort = 8888
+
+# Redirect /api/* to Netlify functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = true
 test

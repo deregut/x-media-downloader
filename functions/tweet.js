@@ -351,10 +351,10 @@ export const handler = async (event) => {
     } else {
       tried.push(`fxtwitter:${r2.status}`);
     }
-    if (r2.status === 404) return jsonErr(404, "NOT_FOUND", `Post ${id} not found on fxtwitter. It may be private, age-restricted, or deleted.`);
     if (r2.status === 429) {
       return jsonErr(429, "RATE_LIMITED", "The fallback service is rate-limited. Wait a few seconds and try again.");
     }
+    // 404 — don't return yet; other providers may have it
   } catch (e) {
     tried.push(`fxtwitter:${e.name === "AbortError" ? "timeout" : e.message}`);
   }
